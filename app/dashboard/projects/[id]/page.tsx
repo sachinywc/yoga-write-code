@@ -1,0 +1,282 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
+import { GenerateButton } from "@/components/dashboard/generate-button";
+import { FormError } from "@/components/form";
+import { PageHeader } from "@/components/page-header";
+import { decodeEntities } from "@/lib/format";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type {
+  ArticleOutline,
+  ContentOpportunity,
+  Project,
+  SeoBrief,
+  TopicCluster,
+  WebsiteAnalysis,
+} from "@/lib/types";
+import { analyzeWebsite, generateBrief, generateCluster, generateOutline } from "./actions";
+
+export const metadata: Metadata = { title: "Project" };
+
+const d = decodeEntities;
+
+function Section({
+  id,
+  step,
+  title,
+  children,
+}: {
+  id: string;
+  step: number;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="mt-12 scroll-mt-24 border-t border-line pt-6">
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-ink-muted">
+        Step {step}
+      </p>
+      <h2 className="font-display mt-1 text-xl font-semibold tracking-tight text-ink">{title}</h2>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function FactRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="py-3">
+      <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-muted">{label}</p>
+      <p className="mt-1 text-sm leading-6 text-ink-secondary">{d(value)}</p>
+    </div>
+  );
+}
+
+function Stepper({
+  steps,
+}: {
+  steps: { id: string; label: string; done: boolean; current: boolean }[];
+}) {
+  return (
+    <ol className="mt-6 flex flex-wrap items-center gap-2">
+      {steps.map((s) => (
+        <li key={s.id}>
+          <a
+            href={`#${s.id}`}
+            className={
+              s.current
+                ? "inline-flex h-8 items-center rounded-full bg-brand px-3 text-xs font-medium text-white"
+                : s.done
+                  ? "inline-flex h-8 items-center rounded-full bg-surface-subtle px-3 text-xs font-medium text-ink-secondary"
+                  : "inline-flex h-8 items-center rounded-full border border-line px-3 text-xs font-medium text-ink-muted"
+            }
+          >
+            {s.done ? "✓ " : ""}
+            {s.label}
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { id } = await params;
+  const { error } = await searchParams;
+  const supabase = await createSupabaseServerClient();
+
+  const { data: project } = await supabase.from("projects").select("*").eq("id", id).single();
+  if (!project) notFound();
+
+  const [analysisRes, opportunitiesRes, clusterRes, briefRes, outlineRes] = await Promise.all([
+    supabase.from("website_analyses").select("*").eq("project_id", id).limit(1).maybeSingle(),
+    supabase
+      .from("content_opportunities")
+      .select("*")
+      .eq("project_id", id)
+      .order("opportunity_score", { ascending: false }),
+    supabase.from("topic_clusters").select("*").eq("project_id", id).limit(1).maybeSingle(),
+    supabase.from("seo_briefs").select("*").eq("project_id", id).limit(1).maybeSingle(),
+    supabase.from("article_outlines").select("*").eq("project_id", id).limit(1).maybeSingle(),
+  ]);
+
+  const p = project as Project;
+  const analysis = analysisRes.data as WebsiteAnalysis | null;
+  const opportunities = (opportunitiesRes.data ?? []) as ContentOpportunity[];
+  const cluster = clusterRes.data as TopicCluster | null;
+  const brief = briefRes.data as SeoBrief | null;
+  const outline = outlineRes.data as ArticleOutline | null;
+  const firstOpportunityId = opportunities[0]?.id ?? "";
+
+  const done = {
+    analysis: Boolean(analysis),
+    opportunities: opportunities.length > 0,
+    cluster: Boolean(cluster),
+    brief: Boolean(brief),
+    outline: Boolean(outline),
+  };
+  const firstOpen = (["analysis", "opportunities", "cluster", "brief", "outline"] as const).find(
+    (key) => !done[key]
+  );
+
+  return (
+    <>
+      <PageHeader title={p.name} description={p.website_url} />
+      <div className="mt-4">
+        <FormError message={error} />
+      </div>
+
+      <Stepper
+        steps={[
+          { id: "analysis", label: "01 Analyze", done: done.analysis, current: firstOpen === "analysis" },
+          { id: "opportunities", label: "02 Opportunities", done: done.opportunities, current: firstOpen === "opportunities" },
+          { id: "cluster", label: "03 Cluster", done: done.cluster, current: firstOpen === "cluster" },
+          { id: "brief", label: "04 Brief", done: done.brief, current: firstOpen === "brief" },
+          { id: "outline", label: "05 Outline", done: done.outline, current: firstOpen === "outline" },
+        ]}
+      />
+
+      <Section id="analysis" step={1} title="Website analysis">
+        {analysis ? (
+          <div className="max-w-2xl divide-y divide-line border-y border-line">
+            <FactRow label="Company summary" value={analysis.company_summary} />
+            <FactRow label="Product category" value={analysis.product_category} />
+            <FactRow label="Target audience" value={analysis.target_audience} />
+            <FactRow label="Positioning" value={analysis.positioning} />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <GenerateButton
+              action={analyzeWebsite}
+              label="Analyze website"
+              pendingLabel="Analyzing website…"
+              hiddenFields={{ projectId: id }}
+            />
+            <p className="text-sm text-ink-muted">
+              Fetches the site, runs the AI analysis, saves the result.
+            </p>
+          </div>
+        )}
+      </Section>
+
+      {analysis ? (
+        <Section id="opportunities" step={2} title="Content opportunities">
+          <ul className="divide-y divide-line border-y border-line">
+            {opportunities.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-baseline justify-between gap-4 py-4">
+                <div className="min-w-0 max-w-2xl">
+                  <p className="text-sm font-medium text-ink">{d(o.title)}</p>
+                  <p className="mt-1 text-sm text-ink-secondary">{d(o.description)}</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.12em] text-ink-muted">
+                    Score {o.opportunity_score} · {o.difficulty} · {o.search_intent} ·{" "}
+                    {o.funnel_stage} funnel
+                  </p>
+                </div>
+                {!cluster ? (
+                  <GenerateButton
+                    action={generateCluster}
+                    label="Build cluster from this"
+                    pendingLabel="Building cluster…"
+                    hiddenFields={{ projectId: id, opportunityId: o.id }}
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {cluster ? (
+        <Section id="cluster" step={3} title="Topic cluster">
+          <div className="max-w-2xl divide-y divide-line border-y border-line">
+            <FactRow label="Pillar topic" value={cluster.pillar_topic} />
+            <FactRow
+              label="Supporting topics"
+              value={(cluster.supporting_topics as string[]).join("  ·  ")}
+            />
+            <FactRow
+              label="Internal linking"
+              value={(cluster.internal_linking_suggestions as string[]).join("  ·  ")}
+            />
+          </div>
+          {!brief && firstOpportunityId ? (
+            <div className="mt-4">
+              <GenerateButton
+                action={generateBrief}
+                label="Generate SEO brief"
+                pendingLabel="Writing brief…"
+                hiddenFields={{ projectId: id, opportunityId: firstOpportunityId }}
+              />
+            </div>
+          ) : null}
+        </Section>
+      ) : null}
+
+      {brief ? (
+        <Section id="brief" step={4} title="SEO brief">
+          <div className="max-w-2xl divide-y divide-line border-y border-line">
+            <FactRow label="Primary keyword" value={brief.primary_keyword} />
+            <FactRow
+              label="Suggested headings"
+              value={(brief.suggested_headings as string[]).join("  ·  ")}
+            />
+            <FactRow
+              label="Questions to answer"
+              value={(brief.questions_to_answer as string[]).join("  ·  ")}
+            />
+            <FactRow
+              label="Entities to mention"
+              value={(brief.entities_to_mention as string[]).join("  ·  ")}
+            />
+          </div>
+          {!outline && firstOpportunityId ? (
+            <div className="mt-4">
+              <GenerateButton
+                action={generateOutline}
+                label="Generate article outline"
+                pendingLabel="Outlining…"
+                hiddenFields={{ projectId: id, opportunityId: firstOpportunityId }}
+              />
+            </div>
+          ) : null}
+        </Section>
+      ) : null}
+
+      {outline ? (
+        <Section id="outline" step={5} title="Article outline">
+          <div className="max-w-2xl">
+            <p className="font-display text-lg font-semibold tracking-tight text-ink">
+              {d(outline.h1)}
+            </p>
+            <ol className="mt-4 space-y-5">
+              {(outline.sections as { heading: string; purpose: string; points: string[] }[]).map(
+                (s, i) => (
+                  <li key={s.heading}>
+                    <p className="text-sm font-medium text-ink">
+                      {i + 1}. {d(s.heading)}
+                    </p>
+                    <p className="mt-1 text-sm text-ink-secondary">{d(s.purpose)}</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-secondary">
+                      {s.points.map((point) => (
+                        <li key={point}>{d(point)}</li>
+                      ))}
+                    </ul>
+                  </li>
+                )
+              )}
+            </ol>
+            <p className="mt-6 text-sm text-ink-muted">
+              Next: open the Editor (sidebar → This project → Editor) to draft each section with
+              AI.
+            </p>
+          </div>
+        </Section>
+      ) : null}
+    </>
+  );
+}

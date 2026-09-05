@@ -1,0 +1,27 @@
+import { redirect } from "next/navigation";
+import { MobileHeader } from "@/components/dashboard/mobile-header";
+import { Sidebar } from "@/components/dashboard/sidebar";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export default async function DashboardLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.auth.getUser();
+
+  if (!data.user) redirect("/login");
+
+  const email = data.user.email ?? undefined;
+
+  return (
+    <div className="min-h-screen">
+      <Sidebar email={email} />
+      <MobileHeader />
+      <main className="lg:pl-72">
+        <div className="mx-auto w-full max-w-5xl px-5 pb-16 pt-8 sm:px-8 lg:px-12 lg:pb-20 lg:pt-14">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
