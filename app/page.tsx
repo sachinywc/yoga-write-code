@@ -32,6 +32,8 @@ const steps = [
 ];
 
 export default function HomePage() {
+  const appOrigin = process.env.NEXT_PUBLIC_SITE_URL || "";
+
   return (
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10">
       <header className="flex items-center justify-between">
@@ -49,9 +51,12 @@ export default function HomePage() {
             Yoga Write Code
           </span>
         </Link>
-        <Link href="/login" className="text-sm font-medium text-ink underline underline-offset-4">
+        <a
+          href={appOrigin ? `${appOrigin}/login` : "/login"}
+          className="text-sm font-medium text-ink underline underline-offset-4"
+        >
           Log in
-        </Link>
+        </a>
       </header>
 
       <section className="mt-24">
@@ -66,12 +71,12 @@ export default function HomePage() {
           opportunities, topic clusters, SEO briefs, and article outlines.
         </p>
         <div className="mt-9 flex items-center gap-4">
-          <Link
-            href="/signup"
+          <a
+            href={appOrigin ? `${appOrigin}/signup` : "/signup"}
             className="inline-flex h-11 items-center rounded-field bg-brand px-5 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
           >
             Try Yoga Write Code
-          </Link>
+          </a>
           <a href="#how" className="text-sm font-medium text-ink underline underline-offset-4">
             See how it works
           </a>
