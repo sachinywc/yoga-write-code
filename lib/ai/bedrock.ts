@@ -15,6 +15,13 @@ type GenerateOptions =
   | string 
   | { user: string; maxTokens?: number; system?: string };
 
+type BedrockRequestBody = {
+  anthropic_version: string;
+  max_tokens: number;
+  messages: { role: "user"; content: string }[];
+  system?: string;
+};
+
 export class BedrockAIProvider {
   async generate(options: GenerateOptions): Promise<string> {
     const userPrompt = typeof options === "string" ? options : options.user;
@@ -22,7 +29,7 @@ export class BedrockAIProvider {
     const systemPrompt = typeof options === "string" ? undefined : options.system;
 
     try {
-      const body: any = {
+      const body: BedrockRequestBody = {
         anthropic_version: "bedrock-2023-05-31",
         max_tokens: maxTokens,
         messages: [{ role: "user", content: userPrompt }],
