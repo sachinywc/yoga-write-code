@@ -19,7 +19,12 @@ export class BedrockAIProvider {
     const systemPrompt = typeof options === "string" ? undefined : options.system;
 
     try {
-      const body: any = {
+      const body: {
+        anthropic_version: string;
+        max_tokens: number;
+        messages: { role: "user"; content: string }[];
+        system?: string;
+      } = {
         anthropic_version: "bedrock-2023-05-31",
         max_tokens: maxTokens,
         messages: [{ role: "user", content: userPrompt }],
@@ -46,20 +51,24 @@ export class BedrockAIProvider {
   }
 
   // Satisfy AIProvider interface expected by provider.ts
-  async analyzeWebsite(prompt: string): Promise<string> {
-    return this.generate(prompt);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async analyzeWebsite(input: any): Promise<any> {
+    return this.generate(JSON.stringify(input));
   }
 
-  async generateCluster(prompt: string): Promise<string> {
-    return this.generate(prompt);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async generateCluster(input: any): Promise<any> {
+    return this.generate(JSON.stringify(input));
   }
 
-  async generateBrief(prompt: string): Promise<string> {
-    return this.generate(prompt);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async generateBrief(input: any): Promise<any> {
+    return this.generate(JSON.stringify(input));
   }
 
-  async generateOutline(prompt: string): Promise<string> {
-    return this.generate(prompt);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async generateOutline(input: any): Promise<any> {
+    return this.generate(JSON.stringify(input));
   }
 }
 
