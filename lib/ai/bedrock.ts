@@ -8,7 +8,8 @@ const client = new BedrockRuntimeClient({
   },
 });
 
-export async function invokeBedrock(prompt: string, maxTokens = 2048): Promise<string> {
+// Used by section drafting (editor's Draft/Rewrite buttons)
+export async function generateWithBedrock(prompt: string, maxTokens = 2048): Promise<string> {
   try {
     const command = new InvokeModelCommand({
       modelId: process.env.BEDROCK_MODEL_ID ?? "anthropic.claude-sonnet-4-5-20250929-v1:0",
@@ -28,4 +29,9 @@ export async function invokeBedrock(prompt: string, maxTokens = 2048): Promise<s
     console.error("[Bedrock error]", error);
     throw new Error("AI request failed. Please try again.");
   }
+}
+
+// Used by project actions (analyze, cluster, brief, outline)
+export async function invokeBedrock(prompt: string, maxTokens = 2048): Promise<string> {
+  return generateWithBedrock(prompt, maxTokens);
 }
