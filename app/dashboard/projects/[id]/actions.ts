@@ -82,7 +82,15 @@ Generate 3-5 real, specific content opportunities based on their actual business
 
     // Insert opportunities if they exist
     if (parsed.content_opportunities && Array.isArray(parsed.content_opportunities)) {
-      const opportunities = parsed.content_opportunities.map((opp: any) => ({
+      const opportunities = parsed.content_opportunities.map((opp: {
+        title?: string;
+        description?: string;
+        reason?: string;
+        opportunity_score?: number;
+        search_intent?: string;
+        funnel_stage?: string;
+        difficulty?: string;
+      }) => ({
         project_id: projectId,
         analysis_id: analysis.id,
         title: opp.title || "",
