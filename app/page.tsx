@@ -1,7 +1,46 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Yoga Write Code" };
+export const metadata: Metadata = {
+  title: "Yoga Write Code — AI Content Operating System for SaaS",
+  description:
+    "Turn your SaaS website into a content plan. Get prioritized content opportunities, topic clusters, SEO briefs, and article outlines in one calm workspace.",
+  alternates: { canonical: "https://yogawritecode.com" },
+  openGraph: {
+    title: "Yoga Write Code — AI Content Operating System for SaaS",
+    description:
+      "Turn your SaaS website into a content plan. Opportunities, clusters, briefs, outlines — all in one workspace.",
+    url: "https://yogawritecode.com",
+    siteName: "Yoga Write Code",
+    locale: "en_US",
+    type: "website",
+    images: [
+      {
+        url: "https://yogawritecode.com/icon.svg",
+        width: 108,
+        height: 108,
+        alt: "Yoga Write Code logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Yoga Write Code — AI Content Operating System for SaaS",
+    description:
+      "Turn your SaaS website into a content plan. Opportunities, clusters, briefs, outlines — all in one workspace.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+};
 
 const steps = [
   {
@@ -30,6 +69,82 @@ const steps = [
     text: "An editorial outline, ready for the document editor.",
   },
 ];
+
+const faqs = [
+  {
+    q: "What is Yoga Write Code?",
+    a: "Yoga Write Code is an AI content operating system for SaaS companies. It analyzes your website and turns it into prioritized content opportunities, topic clusters, SEO briefs, and article outlines you can draft in a built-in editor.",
+  },
+  {
+    q: "How does the website analysis work?",
+    a: "You submit your website URL. The system fetches publicly accessible pages, extracts real signals (title, description, headings, key terms), and uses an AI model to build a grounded company profile and content opportunities. Nothing is invented from thin air.",
+  },
+  {
+    q: "Do I need to connect Google Search Console or other tools?",
+    a: "No. The workflow starts from your public website alone. No Search Console, no analytics access, and no extra integrations are required to get your first content plan.",
+  },
+  {
+    q: "Can I edit what the AI generates?",
+    a: "Yes. Every draft opens in a document-style editor where you can write by hand, draft individual sections with AI, or rewrite your own text with AI. You stay in control of the final article.",
+  },
+  {
+    q: "Is my data safe?",
+    a: "Your workspace is private by default. Data is stored in a Postgres database with row-level security, so only your account can read your projects and drafts. Authentication uses secure server-side sessions.",
+  },
+  {
+    q: "How much does it cost?",
+    a: "Yoga Write Code is free to use while in beta. Paid plans may be introduced later, and any pricing will be shown clearly before purchase.",
+  },
+];
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://yogawritecode.com/#organization",
+      name: "Yoga Write Code",
+      url: "https://yogawritecode.com",
+      logo: "https://yogawritecode.com/icon.svg",
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://yogawritecode.com/#website",
+      url: "https://yogawritecode.com",
+      name: "Yoga Write Code",
+      publisher: { "@id": "https://yogawritecode.com/#organization" },
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "Yoga Write Code",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url: "https://yogawritecode.com",
+      description:
+        "AI content operating system that turns any SaaS website into prioritized content opportunities, topic clusters, SEO briefs, and article outlines.",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      publisher: { "@id": "https://yogawritecode.com/#organization" },
+    },
+    {
+      "@type": "HowTo",
+      name: "How Yoga Write Code turns your website into a content plan",
+      step: steps.map((s, i) => ({
+        "@type": "HowToStep",
+        position: i + 1,
+        name: s.title,
+        text: s.text,
+      })),
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: faqs.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
+  ],
+};
 
 export default function HomePage() {
   const appOrigin = process.env.NEXT_PUBLIC_SITE_URL || "";
@@ -84,20 +199,39 @@ export default function HomePage() {
       </section>
 
       <section id="how" className="mt-24">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
+        <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
           How it works
-        </p>
+        </h2>
         <ol className="mt-6 grid gap-px overflow-hidden rounded-card border border-line bg-line sm:grid-cols-5">
           {steps.map((step) => (
             <li key={step.n} className="bg-surface px-5 py-6">
               <p className="text-xs font-medium text-brand">{step.n}</p>
-              <h2 className="font-display mt-2 text-lg font-semibold tracking-tight text-ink">
+              <h3 className="font-display mt-2 text-lg font-semibold tracking-tight text-ink">
                 {step.title}
-              </h2>
+              </h3>
               <p className="mt-2 text-[13px] leading-5 text-ink-secondary">{step.text}</p>
             </li>
           ))}
         </ol>
+      </section>
+
+      <section id="faq" className="mt-24">
+        <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
+          Frequently asked questions
+        </h2>
+        <div className="mt-6 divide-y divide-line border-y border-line">
+          {faqs.map((f) => (
+            <details key={f.q} className="group py-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+                {f.q}
+                <span className="text-lg leading-none text-ink-muted transition-transform group-open:rotate-45">
+                  +
+                </span>
+              </summary>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-secondary">{f.a}</p>
+            </details>
+          ))}
+        </div>
       </section>
 
       <footer className="mt-24 flex items-center justify-between border-t border-line pt-6 text-sm text-ink-muted">
@@ -111,6 +245,11 @@ export default function HomePage() {
           </Link>
         </div>
       </footer>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
     </main>
   );
 }
