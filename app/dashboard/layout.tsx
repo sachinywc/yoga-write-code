@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { MobileHeader } from "@/components/dashboard/mobile-header";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function DashboardLayout({
   children,
@@ -16,8 +21,8 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen">
       <Sidebar email={email} />
-      <MobileHeader />
-      <main className="lg:pl-72">
+      <MobileHeader email={email} />
+      <main className="lg:pl-60">
         <div className="mx-auto w-full max-w-5xl px-5 pb-16 pt-8 sm:px-8 lg:px-12 lg:pb-20 lg:pt-14">
           {children}
         </div>
