@@ -21,7 +21,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen">
       <Sidebar email={email} />
-      <MobileHeader email={email} />
+      <MobileHeader />
       <main className="lg:pl-60">
         <div className="mx-auto w-full max-w-5xl px-5 pb-16 pt-8 sm:px-8 lg:px-12 lg:pb-20 lg:pt-14">
           {children}
