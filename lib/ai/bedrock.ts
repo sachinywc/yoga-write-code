@@ -19,12 +19,7 @@ export class BedrockAIProvider {
     const systemPrompt = typeof options === "string" ? undefined : options.system;
 
     try {
-      const body: {
-        anthropic_version: string;
-        max_tokens: number;
-        messages: { role: "user"; content: string }[];
-        system?: string;
-      } = {
+      const body: any = {
         anthropic_version: "bedrock-2023-05-31",
         max_tokens: maxTokens,
         messages: [{ role: "user", content: userPrompt }],
@@ -48,6 +43,23 @@ export class BedrockAIProvider {
       console.error("[Bedrock error]", error);
       throw new Error("AI request failed. Please try again.");
     }
+  }
+
+  // Satisfy AIProvider interface expected by provider.ts
+  async analyzeWebsite(prompt: string): Promise<string> {
+    return this.generate(prompt);
+  }
+
+  async generateCluster(prompt: string): Promise<string> {
+    return this.generate(prompt);
+  }
+
+  async generateBrief(prompt: string): Promise<string> {
+    return this.generate(prompt);
+  }
+
+  async generateOutline(prompt: string): Promise<string> {
+    return this.generate(prompt);
   }
 }
 
