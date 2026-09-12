@@ -8,7 +8,6 @@ const client = new BedrockRuntimeClient({
   },
 });
 
-// Used by section drafting (editor's Draft/Rewrite buttons)
 export async function generateWithBedrock(prompt: string, maxTokens = 2048): Promise<string> {
   try {
     const command = new InvokeModelCommand({
@@ -31,7 +30,6 @@ export async function generateWithBedrock(prompt: string, maxTokens = 2048): Pro
   }
 }
 
-// Used by project actions (analyze, cluster, brief, outline)
 export async function invokeBedrock(prompt: string, maxTokens = 2048): Promise<string> {
   return generateWithBedrock(prompt, maxTokens);
 }

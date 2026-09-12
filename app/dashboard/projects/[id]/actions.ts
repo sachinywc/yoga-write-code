@@ -4,6 +4,16 @@ import { redirect } from "next/navigation";
 import { invokeBedrock } from "@/lib/ai/bedrock";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+type ContentOpportunity = {
+  title: string;
+  description: string;
+  reason: string;
+  opportunity_score: number;
+  search_intent: string;
+  funnel_stage: string;
+  difficulty: string;
+};
+
 export async function analyzeWebsite(formData: FormData) {
   const projectId = String(formData.get("projectId") ?? "");
   const supabase = await createSupabaseServerClient();
@@ -46,7 +56,7 @@ Rules:
     const result = await invokeBedrock(prompt, 3000);
     const parsed = JSON.parse(result);
 
-    const { data: analysis } = await supabase
+    const { data: analysis, error: analysisError } = await supabase
       .from("website_analyses")
       .insert({
         project_id: projectId,
@@ -58,9 +68,13 @@ Rules:
       .select("id")
       .single();
 
+    if (analysisError || !analysis) {
+      redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Analysis failed. Try again."));
+    }
+
     if (parsed.content_opportunities?.length) {
       await supabase.from("content_opportunities").insert(
-        parsed.content_opportunities.map((opp: any) => ({
+        parsed.content_opportunities.map((opp: ContentOpportunity) => ({
           project_id: projectId,
           analysis_id: analysis.id,
           title: opp.title,
@@ -75,7 +89,7 @@ Rules:
     }
 
     redirect(`/dashboard/projects/${projectId}`);
-  } catch (error) {
+  } catch {
     redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Analysis failed. Try again."));
   }
 }
@@ -120,7 +134,7 @@ Make the pillar broad enough to be comprehensive but specific enough to be usefu
     });
 
     redirect(`/dashboard/projects/${projectId}`);
-  } catch (error) {
+  } catch {
     redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Cluster generation failed."));
   }
 }
@@ -173,7 +187,7 @@ Be specific and actionable. The brief should guide a writer to create genuinely 
     });
 
     redirect(`/dashboard/projects/${projectId}`);
-  } catch (error) {
+  } catch {
     redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Brief generation failed."));
   }
 }
@@ -223,7 +237,7 @@ Create 4-6 H2 sections that flow logically. Each section should have clear purpo
     });
 
     redirect(`/dashboard/projects/${projectId}`);
-  } catch (error) {
+  } catch {
     redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Outline generation failed."));
   }
 }
