@@ -7,31 +7,38 @@ export const metadata: Metadata = { title: "Settings" };
 export default async function SettingsPage() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
-
-  const rows = [
-    { label: "Account", value: data.user?.email ?? "Unknown" },
-    { label: "Plan", value: "Free" },
-    { label: "AI provider", value: process.env.AI_MODE ?? "mock" },
-    { label: "AI region", value: process.env.AI_MODE === "bedrock" ? (process.env.AWS_REGION ?? "us-east-1") : "—" },
-  ];
+  const email = data.user?.email ?? "";
 
   return (
     <>
-      <PageHeader title="Settings" description="Your account and workspace configuration." />
-      <section className="mt-8 max-w-xl">
-        <h2 className="text-xs font-medium uppercase tracking-[0.14em] text-stone-400">
-          Workspace
-        </h2>
-        <dl className="mt-3 divide-y divide-stone-200 border-y border-stone-200">
-          {rows.map((row) => (
-            <div key={row.label} className="flex items-baseline justify-between py-4">
-              <dt className="text-sm text-stone-600">{row.label}</dt>
-              <dd className="text-sm font-medium text-stone-900">{row.value}</dd>
+      <PageHeader title="Settings" description="Manage your account and preferences." />
+
+      <div className="mt-8 space-y-6">
+        <section className="rounded-card border border-line bg-surface p-6">
+          <h2 className="font-display text-lg font-semibold tracking-tight text-ink">Account</h2>
+          <div className="mt-4 space-y-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-muted">Email</p>
+              <p className="mt-1 text-sm text-ink">{email}</p>
             </div>
-          ))}
-        </dl>
-        <p className="mt-4 text-sm text-stone-500">Editing arrives with a future update.</p>
-      </section>
+          </div>
+        </section>
+
+        <section className="rounded-card border border-line bg-surface p-6">
+          <h2 className="font-display text-lg font-semibold tracking-tight text-ink">AI Features</h2>
+          <p className="mt-2 text-sm text-ink-secondary">
+            Yoga Write Code uses AI to analyze websites and generate content plans. All AI features
+            are enabled by default and work automatically.
+          </p>
+        </section>
+
+        <section className="rounded-card border border-line bg-surface p-6">
+          <h2 className="font-display text-lg font-semibold tracking-tight text-ink">Support</h2>
+          <p className="mt-2 text-sm text-ink-secondary">
+            Questions or feedback? Email us at support@yogawritecode.com.
+          </p>
+        </section>
+      </div>
     </>
   );
 }
