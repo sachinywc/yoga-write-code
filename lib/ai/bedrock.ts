@@ -8,6 +8,9 @@ const client = new BedrockRuntimeClient({
   },
 });
 
+// HARDCODED VALID MODEL ID TO BYPASS STALE ENV VARS
+const ACTIVE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0";
+
 type GenerateOptions = 
   | string 
   | { user: string; maxTokens?: number; system?: string };
@@ -19,12 +22,7 @@ export class BedrockAIProvider {
     const systemPrompt = typeof options === "string" ? undefined : options.system;
 
     try {
-      const body: {
-        anthropic_version: string;
-        max_tokens: number;
-        messages: { role: "user"; content: string }[];
-        system?: string;
-      } = {
+      const body: any = {
         anthropic_version: "bedrock-2023-05-31",
         max_tokens: maxTokens,
         messages: [{ role: "user", content: userPrompt }],
@@ -35,7 +33,7 @@ export class BedrockAIProvider {
       }
 
       const command = new InvokeModelCommand({
-        modelId: process.env.BEDROCK_MODEL_ID ?? "anthropic.claude-sonnet-4-5-20250929-v1:0",
+        modelId: ACTIVE_MODEL_ID, // <--- THE FIX: Hardcoded active model
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify(body),
