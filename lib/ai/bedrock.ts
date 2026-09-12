@@ -1,28 +1,19 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-
 const client = new BedrockRuntimeClient({
   region: process.env.AWS_REGION ?? "us-east-1",
-  ...(accessKeyId && secretAccessKey
-    ? { credentials: { accessKeyId, secretAccessKey } }
-    : {}),
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
+  },
 });
 
-// HARDCODED VALID MODEL ID TO BYPASS STALE ENV VARS
-const ACTIVE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0";
+// Switched to v1 which is universally enabled by default in Bedrock
+const ACTIVE_MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0";
 
 type GenerateOptions = 
   | string 
   | { user: string; maxTokens?: number; system?: string };
-
-type BedrockRequestBody = {
-  anthropic_version: string;
-  max_tokens: number;
-  messages: { role: "user"; content: string }[];
-  system?: string;
-};
 
 export class BedrockAIProvider {
   async generate(options: GenerateOptions): Promise<string> {
@@ -31,7 +22,7 @@ export class BedrockAIProvider {
     const systemPrompt = typeof options === "string" ? undefined : options.system;
 
     try {
-      const body: BedrockRequestBody = {
+      const body: any = {
         anthropic_version: "bedrock-2023-05-31",
         max_tokens: maxTokens,
         messages: [{ role: "user", content: userPrompt }],
@@ -42,7 +33,7 @@ export class BedrockAIProvider {
       }
 
       const command = new InvokeModelCommand({
-        modelId: ACTIVE_MODEL_ID, // <--- THE FIX: Hardcoded active model
+        modelId: ACTIVE_MODEL_ID,
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify(body),
@@ -51,9 +42,10 @@ export class BedrockAIProvider {
       const response = await client.send(command);
       const responseBody = JSON.parse(new TextDecoder().decode(response.body));
       return responseBody.content?.[0]?.text ?? "";
-    } catch (error) {
-      console.error("[Bedrock error]", error);
-      throw new Error("AI request failed. Verify your AWS credentials and Bedrock model access.");
+    } catch (error: any) {
+      // Log the EXACT AWS error so we aren't flying blind
+      console.error("[Bedrock Error Details]", error?.name, error?.message);
+      throw new Error(`Bedrock failed: ${error?.name || 'Unknown'} - ${error?.message || 'Check AWS credentials'}`);
     }
   }
 
