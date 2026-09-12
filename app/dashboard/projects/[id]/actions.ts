@@ -4,93 +4,109 @@ import { redirect } from "next/navigation";
 import { invokeBedrock } from "@/lib/ai/bedrock";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type ContentOpportunity = {
-  title: string;
-  description: string;
-  reason: string;
-  opportunity_score: number;
-  search_intent: string;
-  funnel_stage: string;
-  difficulty: string;
-};
-
 export async function analyzeWebsite(formData: FormData) {
   const projectId = String(formData.get("projectId") ?? "");
   const supabase = await createSupabaseServerClient();
 
-  const { data: project } = await supabase.from("projects").select("*").eq("id", projectId).single();
-  if (!project) redirect("/dashboard?error=" + encodeURIComponent("Project not found."));
+  const { data: project } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .single();
+    
+  if (!project) {
+    redirect("/dashboard?error=" + encodeURIComponent("Project not found."));
+  }
 
   const url = project.website_url;
 
-  const prompt = `Analyze this SaaS website and extract actionable insights.
+  const prompt = `You are an expert SaaS content strategist. Analyze this website and provide insights.
 
-Website: ${url}
+Website URL: ${url}
 
-Extract and return as JSON:
+Provide your analysis in this exact JSON format:
 {
-  "company_summary": "2-3 sentence summary of what this company does and who it serves",
-  "product_category": "Specific SaaS category (e.g., 'Developer tools', 'Sales automation', 'Project management')",
-  "target_audience": "Primary user persona with role and pain points",
-  "positioning": "How they differentiate from competitors",
+  "company_summary": "Brief description of what this company does",
+  "product_category": "Their product category",
+  "target_audience": "Who they serve",
+  "positioning": "How they differentiate",
   "content_opportunities": [
     {
-      "title": "Specific content topic title",
-      "description": "What this content would cover",
-      "reason": "Why this matters for their specific audience and business goals",
-      "opportunity_score": 0-100,
-      "search_intent": "informational" | "commercial" | "transactional",
-      "funnel_stage": "top" | "middle" | "bottom",
-      "difficulty": "low" | "medium" | "high"
+      "title": "Content topic title",
+      "description": "What this covers",
+      "reason": "Why this matters",
+      "opportunity_score": 85,
+      "search_intent": "informational",
+      "funnel_stage": "top",
+      "difficulty": "medium"
     }
   ]
 }
 
-Rules:
-- Generate 3-5 high-value content opportunities
-- Be specific to their actual product and audience (not generic "blog about industry trends")
-- Scores should reflect real business impact
-- Reasons should explain why this content drives their specific goals`;
+Generate 3-5 real, specific content opportunities based on their actual business.`;
 
   try {
     const result = await invokeBedrock(prompt, 3000);
-    const parsed = JSON.parse(result);
+    
+    // Try to extract JSON from the response
+    let parsed;
+    try {
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        parsed = JSON.parse(result);
+      }
+    } catch (parseError) {
+      console.error("[JSON Parse Error]", parseError, "Raw result:", result);
+      redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("AI returned invalid format. Try again."));
+    }
 
+    // Insert analysis
     const { data: analysis, error: analysisError } = await supabase
       .from("website_analyses")
       .insert({
         project_id: projectId,
-        company_summary: parsed.company_summary,
-        product_category: parsed.product_category,
-        target_audience: parsed.target_audience,
-        positioning: parsed.positioning,
+        company_summary: parsed.company_summary || "",
+        product_category: parsed.product_category || "",
+        target_audience: parsed.target_audience || "",
+        positioning: parsed.positioning || "",
       })
       .select("id")
       .single();
 
-    if (analysisError || !analysis) {
-      redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Analysis failed. Try again."));
+    if (analysisError) {
+      console.error("[Analysis Insert Error]", analysisError);
+      redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Failed to save analysis."));
     }
 
-    if (parsed.content_opportunities?.length) {
-      await supabase.from("content_opportunities").insert(
-        parsed.content_opportunities.map((opp: ContentOpportunity) => ({
-          project_id: projectId,
-          analysis_id: analysis.id,
-          title: opp.title,
-          description: opp.description,
-          reason: opp.reason,
-          opportunity_score: opp.opportunity_score,
-          search_intent: opp.search_intent,
-          funnel_stage: opp.funnel_stage,
-          difficulty: opp.difficulty,
-        }))
-      );
+    // Insert opportunities if they exist
+    if (parsed.content_opportunities && Array.isArray(parsed.content_opportunities)) {
+      const opportunities = parsed.content_opportunities.map((opp: any) => ({
+        project_id: projectId,
+        analysis_id: analysis.id,
+        title: opp.title || "",
+        description: opp.description || "",
+        reason: opp.reason || "",
+        opportunity_score: opp.opportunity_score || 50,
+        search_intent: opp.search_intent || "informational",
+        funnel_stage: opp.funnel_stage || "top",
+        difficulty: opp.difficulty || "medium",
+      }));
+
+      const { error: oppError } = await supabase
+        .from("content_opportunities")
+        .insert(opportunities);
+
+      if (oppError) {
+        console.error("[Opportunities Insert Error]", oppError);
+      }
     }
 
     redirect(`/dashboard/projects/${projectId}`);
-  } catch {
-    redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Analysis failed. Try again."));
+  } catch (error) {
+    console.error("[Analyze Website Error]", error);
+    redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Analysis failed. Check your AWS credentials."));
   }
 }
 
@@ -105,36 +121,35 @@ export async function generateCluster(formData: FormData) {
     .eq("id", opportunityId)
     .single();
 
-  if (!opportunity) redirect("/dashboard?error=" + encodeURIComponent("Opportunity not found."));
+  if (!opportunity) {
+    redirect("/dashboard?error=" + encodeURIComponent("Opportunity not found."));
+  }
 
-  const prompt = `Create a topic cluster for this content opportunity.
-
-Opportunity: ${opportunity.title}
-Description: ${opportunity.description}
+  const prompt = `Create a topic cluster for: ${opportunity.title}
 
 Return JSON:
 {
-  "pillar_topic": "The main comprehensive topic",
-  "supporting_topics": ["3-5 specific subtopics that support the pillar"],
-  "internal_linking_suggestions": ["2-3 concrete internal linking strategies"]
-}
-
-Make the pillar broad enough to be comprehensive but specific enough to be useful.`;
+  "pillar_topic": "Main comprehensive topic",
+  "supporting_topics": ["Topic 1", "Topic 2", "Topic 3"],
+  "internal_linking_suggestions": ["Suggestion 1", "Suggestion 2"]
+}`;
 
   try {
-    const result = await invokeBedrock(prompt);
-    const parsed = JSON.parse(result);
+    const result = await invokeBedrock(prompt, 2048);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : result);
 
     await supabase.from("topic_clusters").insert({
       project_id: projectId,
       opportunity_id: opportunityId,
-      pillar_topic: parsed.pillar_topic,
-      supporting_topics: parsed.supporting_topics,
-      internal_linking_suggestions: parsed.internal_linking_suggestions,
+      pillar_topic: parsed.pillar_topic || "",
+      supporting_topics: parsed.supporting_topics || [],
+      internal_linking_suggestions: parsed.internal_linking_suggestions || [],
     });
 
     redirect(`/dashboard/projects/${projectId}`);
-  } catch {
+  } catch (error) {
+    console.error("[Generate Cluster Error]", error);
     redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Cluster generation failed."));
   }
 }
@@ -150,44 +165,43 @@ export async function generateBrief(formData: FormData) {
     .eq("id", opportunityId)
     .single();
 
-  if (!opportunity) redirect("/dashboard?error=" + encodeURIComponent("Opportunity not found."));
+  if (!opportunity) {
+    redirect("/dashboard?error=" + encodeURIComponent("Opportunity not found."));
+  }
 
-  const prompt = `Create an SEO brief for this content.
-
-Topic: ${opportunity.title}
-Context: ${opportunity.description}
+  const prompt = `Create an SEO brief for: ${opportunity.title}
 
 Return JSON:
 {
-  "primary_keyword": "The main target keyword",
-  "search_intent": "What the searcher actually wants",
+  "primary_keyword": "main keyword",
+  "search_intent": "What searcher wants",
   "target_audience": "Who should read this",
-  "suggested_headings": ["5-7 H2/H3 headings that structure the article"],
-  "questions_to_answer": ["4-6 specific questions the article must address"],
-  "entities_to_mention": ["3-5 specific tools, concepts, or companies to reference"],
-  "competitor_insights": "2-3 sentences about what competitors are doing and how to differentiate"
-}
-
-Be specific and actionable. The brief should guide a writer to create genuinely useful content.`;
+  "suggested_headings": ["H2 1", "H2 2", "H2 3"],
+  "questions_to_answer": ["Question 1", "Question 2"],
+  "entities_to_mention": ["Entity 1", "Entity 2"],
+  "competitor_insights": "How to differentiate"
+}`;
 
   try {
-    const result = await invokeBedrock(prompt);
-    const parsed = JSON.parse(result);
+    const result = await invokeBedrock(prompt, 2048);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : result);
 
     await supabase.from("seo_briefs").insert({
       project_id: projectId,
       opportunity_id: opportunityId,
-      primary_keyword: parsed.primary_keyword,
-      search_intent: parsed.search_intent,
-      target_audience: parsed.target_audience,
-      suggested_headings: parsed.suggested_headings,
-      questions_to_answer: parsed.questions_to_answer,
-      entities_to_mention: parsed.entities_to_mention,
-      competitor_insights: parsed.competitor_insights,
+      primary_keyword: parsed.primary_keyword || "",
+      search_intent: parsed.search_intent || "",
+      target_audience: parsed.target_audience || "",
+      suggested_headings: parsed.suggested_headings || [],
+      questions_to_answer: parsed.questions_to_answer || [],
+      entities_to_mention: parsed.entities_to_mention || [],
+      competitor_insights: parsed.competitor_insights || "",
     });
 
     redirect(`/dashboard/projects/${projectId}`);
-  } catch {
+  } catch (error) {
+    console.error("[Generate Brief Error]", error);
     redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Brief generation failed."));
   }
 }
@@ -205,39 +219,39 @@ export async function generateOutline(formData: FormData) {
     .limit(1)
     .maybeSingle();
 
-  const prompt = `Create an editorial article outline.
+  const prompt = `Create an editorial outline.
 
-Primary keyword: ${brief?.primary_keyword ?? "not specified"}
-Suggested headings: ${brief?.suggested_headings?.join(", ") ?? "none"}
-Questions to answer: ${brief?.questions_to_answer?.join(", ") ?? "none"}
+Keyword: ${brief?.primary_keyword ?? "topic"}
+Headings: ${brief?.suggested_headings?.join(", ") ?? "none"}
+Questions: ${brief?.questions_to_answer?.join(", ") ?? "none"}
 
 Return JSON:
 {
-  "h1": "Compelling article title",
+  "h1": "Article title",
   "sections": [
     {
       "heading": "H2 heading",
-      "purpose": "What this section accomplishes",
-      "points": ["3-5 specific points or subheadings for this section"]
+      "purpose": "What this section does",
+      "points": ["Point 1", "Point 2"]
     }
   ]
-}
-
-Create 4-6 H2 sections that flow logically. Each section should have clear purpose and concrete points.`;
+}`;
 
   try {
-    const result = await invokeBedrock(prompt);
-    const parsed = JSON.parse(result);
+    const result = await invokeBedrock(prompt, 2048);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : result);
 
     await supabase.from("article_outlines").insert({
       project_id: projectId,
       opportunity_id: opportunityId,
-      h1: parsed.h1,
-      sections: parsed.sections,
+      h1: parsed.h1 || "",
+      sections: parsed.sections || [],
     });
 
     redirect(`/dashboard/projects/${projectId}`);
-  } catch {
+  } catch (error) {
+    console.error("[Generate Outline Error]", error);
     redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Outline generation failed."));
   }
 }
