@@ -1,11 +1,13 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
+const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
 const client = new BedrockRuntimeClient({
   region: process.env.AWS_REGION ?? "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
-  },
+  ...(accessKeyId && secretAccessKey
+    ? { credentials: { accessKeyId, secretAccessKey } }
+    : {}),
 });
 
 // HARDCODED VALID MODEL ID TO BYPASS STALE ENV VARS
@@ -51,7 +53,7 @@ export class BedrockAIProvider {
       return responseBody.content?.[0]?.text ?? "";
     } catch (error) {
       console.error("[Bedrock error]", error);
-      throw new Error("AI request failed. Please try again.");
+      throw new Error("AI request failed. Verify your AWS credentials and Bedrock model access.");
     }
   }
 

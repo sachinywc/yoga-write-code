@@ -59,7 +59,7 @@ Generate 3-5 real, specific content opportunities based on their actual business
       }
     } catch (parseError) {
       console.error("[JSON Parse Error]", parseError, "Raw result:", result);
-      redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("AI returned invalid format. Try again."));
+      throw new Error("AI returned invalid format. Try again.");
     }
 
     // Insert analysis
@@ -77,7 +77,7 @@ Generate 3-5 real, specific content opportunities based on their actual business
 
     if (analysisError) {
       console.error("[Analysis Insert Error]", analysisError);
-      redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Failed to save analysis."));
+      throw new Error("Failed to save analysis.");
     }
 
     // Insert opportunities if they exist
@@ -111,11 +111,13 @@ Generate 3-5 real, specific content opportunities based on their actual business
       }
     }
 
-    redirect(`/dashboard/projects/${projectId}`);
   } catch (error) {
     console.error("[Analyze Website Error]", error);
-    redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent("Analysis failed. Check your AWS credentials."));
+    const message = error instanceof Error ? error.message : "Analysis failed. Try again.";
+    redirect(`/dashboard/projects/${projectId}?error=` + encodeURIComponent(message));
   }
+
+  redirect(`/dashboard/projects/${projectId}`);
 }
 
 export async function generateCluster(formData: FormData) {
