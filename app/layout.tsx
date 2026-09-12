@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: { default: "Yoga Write Code", template: "%s · Yoga Write Code" },
   description: "AI content operating system for SaaS companies.",
   icons: { icon: "/icon.svg" },
+  verification: {
+    google: "tL8-FZhkoHwlI57LESE58csCvMLzdQRxxCi6Cs6d7bc",
+  },
 };
 
 export default function RootLayout({
